@@ -135,18 +135,17 @@ body {
     var(--bg);
 }
 
-/* Dialogue video — portrait: cover (fill frame), landscape: contain (show full character) */
+/* Dialogue video — キャラクターエリアを満たす（テキストと非重複） */
 .dialogue-video {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-}
-@media (orientation: portrait) {
-  .dialogue-video { object-fit: cover; object-position: center top; }
+  object-fit: cover;
+  object-position: center 20%;
 }
 @media (orientation: landscape) {
-  .dialogue-video { object-fit: contain; object-position: center bottom; }
+  .dialogue-video { object-fit: contain; object-position: center center; }
 }
 
 /* Scrollbar */

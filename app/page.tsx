@@ -805,14 +805,17 @@ function StoryScreen({ philId, progress, onUpdateProgress, onGoDeep, onBack }: {
 
   // ── DIALOGUE
   if (phase === 'dialogue') return (
-    <div style={{ position: 'fixed', inset: 0, background: C.bg, overflow: 'hidden' }}>
+    <div style={{ position: 'fixed', inset: 0, background: C.bg, display: 'flex', flexDirection: 'column' }}>
 
-      {/* ── Character area: nav下〜画面下端まで全面使用 ── */}
+      {/* ── nav 高さ分スペーサー ── */}
+      <div style={{ height: 48, flexShrink: 0 }} />
+
+      {/* ── キャラクターエリア（テキストと重ならない独立ゾーン） ── */}
       <div style={{
-        position: 'absolute', top: 48, left: 0, right: 0, bottom: 0,
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        flex: '0 0 54%',
+        position: 'relative',
         overflow: 'hidden',
-        background: `radial-gradient(ellipse at center bottom, ${p.color}20 0%, transparent 65%)`,
+        background: `radial-gradient(ellipse at center, ${p.color}20 0%, transparent 65%)`,
       }}>
         {/* 動画（/public/videos/[id].mp4 を置くと自動で表示） */}
         {!videoError && (
@@ -835,16 +838,17 @@ function StoryScreen({ philId, progress, onUpdateProgress, onGoDeep, onBack }: {
               alt={p.name}
               onError={() => setImgError(true)}
               style={{
-                height: '100%', width: 'auto', maxWidth: '100%',
-                objectFit: 'contain', objectPosition: 'bottom center',
+                width: '100%', height: '100%',
+                objectFit: 'cover', objectPosition: 'center 20%',
                 animation: 'bob 3s ease-in-out infinite',
               }}
             />
           ) : (
             <div style={{
-              fontSize: 'clamp(100px,22vw,180px)',
+              width: '100%', height: '100%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 'clamp(80px,18vw,140px)',
               animation: 'bob 3s ease-in-out infinite',
-              paddingBottom: '36%',
             }}>
               {p.icon}
             </div>
@@ -852,60 +856,63 @@ function StoryScreen({ philId, progress, onUpdateProgress, onGoDeep, onBack }: {
         )}
       </div>
 
-      {/* ── テキストウィンドウ（下部36%にオーバーレイ） ── */}
+      {/* ── テキストパネル（キャラエリアの下、オーバーレイなし） ── */}
       <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0, height: '36%',
-        background: 'rgba(4,12,12,.55)', backdropFilter: 'blur(6px)',
-        borderTop: `1px solid ${C.border}`,
-        padding: '16px 24px 16px',
+        flex: 1,
+        background: 'rgba(4,12,12,.96)',
+        borderTop: `2px solid ${p.color}55`,
+        padding: '12px 20px 10px',
         display: 'flex', flexDirection: 'column',
+        minHeight: 0,
       }}>
         {/* Speaker name */}
         <div style={{
           fontFamily: PIXEL, fontSize: 8, color: p.color,
-          letterSpacing: 2, marginBottom: 10,
-          borderBottom: `1px solid ${p.color}55`, paddingBottom: 8,
+          letterSpacing: 2, marginBottom: 8, flexShrink: 0,
+          borderBottom: `1px solid ${p.color}44`, paddingBottom: 7,
         }}>
           {p.name}  <span style={{ opacity: 0.6 }}>/{p.nameEn}/</span>
         </div>
 
-        {/* Dialogue text — サイズ大 */}
-        <p style={{
-          fontFamily: SERIF,
-          fontSize: 'clamp(18px,3vw,22px)',
-          color: C.cream, lineHeight: 1.95, flex: 1, overflow: 'hidden',
-        }}>
-          {displayed}
-          {typing && (
-            <span style={{ animation: 'blink-a .7s step-end infinite', color: C.tealLight }}>▌</span>
-          )}
-        </p>
+        {/* Dialogue text — スクロール可能 */}
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, marginBottom: 8 }}>
+          <p style={{
+            fontFamily: SERIF,
+            fontSize: 'clamp(15px,2.6vw,19px)',
+            color: C.cream, lineHeight: 1.9,
+          }}>
+            {displayed}
+            {typing && (
+              <span style={{ animation: 'blink-a .7s step-end infinite', color: C.tealLight }}>▌</span>
+            )}
+          </p>
+        </div>
 
         {/* Progress dots + NEXT button */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 6 }}>
             {p.dialogue.map((_, i) => (
               <div key={i} style={{
-                width: i === lineIdx ? 16 : 7, height: 7,
+                width: i === lineIdx ? 14 : 6, height: 6,
                 background: i <= lineIdx ? p.color : C.tealDim,
-                borderRadius: 4, transition: 'width .3s',
+                borderRadius: 3, transition: 'width .3s',
               }} />
             ))}
           </div>
 
-          {/* NEXT ボタン — 大きく目立つ */}
+          {/* NEXT ボタン */}
           <button onClick={nextLine} style={{
-            fontFamily: PIXEL, fontSize: 13, letterSpacing: 2,
+            fontFamily: PIXEL, fontSize: 11, letterSpacing: 2,
             color: typing ? C.textDim : C.bg,
             background: typing
               ? 'transparent'
               : `linear-gradient(135deg, ${p.color}cc, ${p.color})`,
             border: `2px solid ${typing ? C.tealDim : p.color}`,
-            padding: '12px 28px',
+            padding: '10px 22px',
             cursor: 'pointer',
-            boxShadow: typing ? 'none' : `0 0 16px ${p.color}66`,
+            boxShadow: typing ? 'none' : `0 0 14px ${p.color}66`,
             transition: 'all .2s',
-            minWidth: 140,
+            minWidth: 120,
           }}>
             {typing
               ? 'SKIP'
