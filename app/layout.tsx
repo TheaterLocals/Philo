@@ -1,16 +1,23 @@
-export const metadata = {
-  title: "PHILO",
-  description: "あなたの悩みに寄り添う哲学者を探す旅",
-};
+import type { Metadata } from 'next'
+import { Press_Start_2P } from 'next/font/google'
+import './globals.css'
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+const pressStart2P = Press_Start_2P({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-pixel',
+  display: 'swap',
+})
+
+export const metadata: Metadata = {
+  title: 'PHILO — 哲学学習RPG',
+  description: 'あなたの悩みを、2500年前にすでに言語化していた人がいる。',
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ja">
-      <body>{children}</body>
+    <html lang="ja" className={pressStart2P.variable} suppressHydrationWarning>
+      <body className="bg-texture">{children}</body>
     </html>
-  );
+  )
 }

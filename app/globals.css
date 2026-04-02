@@ -1,0 +1,155 @@
+@import url('https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #0f1a1a;
+  --panel:       #162020;
+  --panelBorder: #2a4a4a;
+  --teal:        #3d8080;
+  --tealLight:   #5aacac;
+  --tealDim:     #234040;
+  --amber:       #d4a853;
+  --amberDim:    #7a5a20;
+  --cream:       #e8dcc8;
+  --creamDim:    #9a8870;
+  --red:         #c05040;
+  --green:       #4a8a5a;
+  --text:        #d0e8e8;
+  --textDim:     #6a9a9a;
+  --pixel:       #2a5050;
+  --hp:          #e05050;
+  --hpBg:        #3a1010;
+  --font-pixel:  'Press Start 2P', monospace;
+  --font-serif:  'DotGothic16', sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-serif);
+}
+
+/* ── Animations ─────────────────────────────────────────────── */
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+
+@keyframes float-up {
+  0%   { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-60px) scale(0.5); opacity: 0; }
+}
+
+@keyframes blink-a {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-color: var(--red); box-shadow: 0 0 8px rgba(192,80,64,.4); }
+  50%       { border-color: #e07070;   box-shadow: 0 0 20px rgba(192,80,64,.8); }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: .25; transform: scale(1); }
+  50%       { opacity: .8;  transform: scale(1.4); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes hpDrain {
+  0%   { transform: scaleX(1); }
+  100% { transform: scaleX(var(--hp-pct)); }
+}
+
+/* ── Utility ────────────────────────────────────────────────── */
+
+.pixel-font  { font-family: var(--font-pixel); }
+.serif-font  { font-family: var(--font-serif); }
+
+.btn-pixel {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 1px;
+  border: 2px solid var(--tealLight);
+  background: transparent;
+  color: var(--tealLight);
+  padding: 10px 20px;
+  cursor: pointer;
+  image-rendering: pixelated;
+  transition: background .15s, color .15s;
+}
+.btn-pixel:hover {
+  background: var(--tealDim);
+  color: var(--cream);
+}
+.btn-pixel:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.btn-amber {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 1px;
+  border: 2px solid var(--amber);
+  background: var(--amberDim);
+  color: var(--cream);
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.btn-amber:hover { background: #a87830; }
+
+/* Pixel-style box */
+.pixel-box {
+  border: 2px solid var(--panelBorder);
+  background: var(--panel);
+  position: relative;
+}
+.pixel-box::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid var(--tealDim);
+  pointer-events: none;
+}
+
+/* Background texture */
+.bg-texture {
+  background:
+    repeating-linear-gradient(0deg, transparent 3px, rgba(0,0,0,.12) 4px),
+    repeating-linear-gradient(90deg, transparent 3px, rgba(0,0,0,.06) 4px),
+    var(--bg);
+}
+
+/* Dialogue video — portrait: cover (fill frame), landscape: contain (show full character) */
+.dialogue-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+@media (orientation: portrait) {
+  .dialogue-video { object-fit: cover; object-position: center top; }
+}
+@media (orientation: landscape) {
+  .dialogue-video { object-fit: contain; object-position: center bottom; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--tealDim); border-radius: 2px; }
