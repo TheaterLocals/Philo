@@ -28,6 +28,11 @@ export type Quiz = {
   explanation: string
 }
 
+export type DeepDiveSection = {
+  title: string
+  body:  string
+}
+
 export type Philosopher = {
   id:          PhilosopherId
   name:        string
@@ -40,6 +45,7 @@ export type Philosopher = {
   quizzes:     Quiz[]
   color:       string
   icon:        string
+  deepDive:    DeepDiveSection[]
 }
 
 export type Buddy = {

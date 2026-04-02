@@ -1033,24 +1033,7 @@ function DeepTextScreen({ philId, onComplete, onBack }: {
   const [vis, setVis] = useState(false)
   useEffect(() => { const t = setTimeout(() => setVis(true), 80); return () => clearTimeout(t) }, [])
 
-  const sections = [
-    {
-      title: '時代背景',
-      body: `${p.name}が生きた時代を知ることは、その思想の必然性を理解する鍵となります。\n\n彼らの言葉は単なる観念ではなく、具体的な社会的・政治的状況への応答として生まれました。その時代を生きた人々が抱えた問いは、形を変えて今日の私たちにも響いています。`,
-    },
-    {
-      title: '核心思想の深掘り',
-      body: `「${p.quote}」\n\nこの言葉は表面的な読み方では捉えきれない深さを持っています。${p.name}の思想の核心は、私たちが当たり前だと思っている前提を問い直すところから始まります。\n\n${p.tagline}——この一文に込められた哲学的洞察を、もう一段深く掘り下げましょう。`,
-    },
-    {
-      title: '現代への接続',
-      body: 'AI時代・競争社会を生きる私たちにとって、この思想はどんな意味を持つでしょうか。\n\n情報過多、承認欲求、孤独感——現代固有の悩みに見えて、その根っこは何千年前から変わっていません。古代の哲学者たちはすでにその処方箋を考えていたのです。',
-    },
-    {
-      title: 'キーワード',
-      body: p.dialogue.slice(0, 3).map((line, i) => `■ キーワード ${i + 1}\n${line}`).join('\n\n'),
-    },
-  ]
+  const sections = p.deepDive
 
   const [readSections, setReadSections] = useState<Set<number>>(new Set())
   const [expanded, setExpanded] = useState<number | null>(null)
