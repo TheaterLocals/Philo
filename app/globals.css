@@ -135,17 +135,20 @@ body {
     var(--bg);
 }
 
-/* Dialogue video — キャラクターエリアを満たす（テキストと非重複） */
+/* Dialogue video
+   portrait: テキストオーバーレイ38%分を考慮し、顔を上寄りに表示
+   landscape: キャラ全体を見せるため contain */
 .dialogue-video {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 20%;
+  /* 顔が画面上62%の範囲に収まるよう上寄りに */
+  object-position: center 15%;
 }
 @media (orientation: landscape) {
-  .dialogue-video { object-fit: contain; object-position: center center; }
+  .dialogue-video { object-fit: contain; object-position: center bottom; }
 }
 
 /* Scrollbar */
