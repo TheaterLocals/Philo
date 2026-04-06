@@ -2,8 +2,8 @@ export type BuddyId = 'socrates' | 'buddha' | 'laozi'
 
 export type PhilosopherId =
   | 'socrates' | 'plato' | 'aristotle' | 'kant' | 'nietzsche'
-  | 'buddha' | 'nagarjuna' | 'heidegger'
-  | 'laozi' | 'zhuangzi' | 'confucius'
+  | 'buddha' | 'nagarjuna' | 'dogen' | 'nishida' | 'heidegger'
+  | 'laozi' | 'zhuangzi' | 'confucius' | 'mencius' | 'wang_yangming'
 
 export type BossId = 'doksa' | 'tanha' | 'wei'
 
@@ -33,6 +33,17 @@ export type DeepDiveSection = {
   body:  string
 }
 
+export type DialogueLine = {
+  speaker: 'sakura' | 'philosopher'
+  text:    string
+}
+
+export type Wisdom = {
+  name:        string
+  description: string
+  icon:        string
+}
+
 export type Philosopher = {
   id:          PhilosopherId
   name:        string
@@ -41,11 +52,12 @@ export type Philosopher = {
   unlockFrom:  PhilosopherId | null
   tagline:     string
   quote:       string
-  dialogue:    string[]
+  dialogue:    DialogueLine[]
   quizzes:     Quiz[]
   color:       string
   icon:        string
   deepDive:    DeepDiveSection[]
+  wisdom:      Wisdom
 }
 
 export type Buddy = {
@@ -83,6 +95,8 @@ export type GameScreen =
   | 'prologue'
   | 'buddy'
   | 'map'
+  | 'collection'
+  | 'status'
   | `story_${string}`
   | `deep_${string}`
   | 'boss'

@@ -85,18 +85,19 @@ function HPBar({ current, max }: { current: number; max: number }) {
 
 // ── Global Nav ───────────────────────────────────────────────────
 
-function GlobalNav({ screen, onMap, onSave }: {
-  screen: string; onMap: () => void; onSave: () => void
+function GlobalNav({ screen, onMap, onSave, onCollection }: {
+  screen: string; onMap: () => void; onSave: () => void; onCollection: () => void
 }) {
   const [saved, setSaved] = useState(false)
-  const showNav = screen === 'map' || screen.startsWith('story_') || screen.startsWith('deep_') || screen === 'boss'
+  const showNav = screen === 'map' || screen === 'collection' || screen.startsWith('story_') || screen.startsWith('deep_') || screen === 'boss'
   if (!showNav) return null
 
   const label =
-    screen === 'map'         ? 'MAP' :
-    screen.startsWith('story_') ? 'STORY' :
-    screen.startsWith('deep_')  ? 'DEEP TEXT' :
-    screen === 'boss'        ? 'BOSS BATTLE' : ''
+    screen === 'map'              ? 'MAP' :
+    screen === 'collection'       ? '哲学者図鑑' :
+    screen.startsWith('story_')   ? 'STORY' :
+    screen.startsWith('deep_')    ? 'DEEP TEXT' :
+    screen === 'boss'             ? 'BOSS BATTLE' : ''
 
   const handleSave = () => {
     onSave()
@@ -123,7 +124,25 @@ function GlobalNav({ screen, onMap, onSave }: {
 
       {/* Right: buttons */}
       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-        {screen !== 'map' && (
+        {screen !== 'map' && screen !== 'collection' && (
+          <button onClick={onMap} style={{
+            fontFamily: PIXEL, fontSize: 8, letterSpacing: 1,
+            border: `1px solid ${C.border}`, background: 'transparent',
+            color: C.tealLight, padding: '6px 12px', cursor: 'pointer',
+          }}>
+            ◀ MAP
+          </button>
+        )}
+        {screen !== 'collection' && (
+          <button onClick={onCollection} style={{
+            fontFamily: PIXEL, fontSize: 8, letterSpacing: 1,
+            border: `1px solid ${C.amberDim}`, background: 'transparent',
+            color: C.amber, padding: '6px 12px', cursor: 'pointer',
+          }}>
+            図鑑
+          </button>
+        )}
+        {screen === 'collection' && (
           <button onClick={onMap} style={{
             fontFamily: PIXEL, fontSize: 8, letterSpacing: 1,
             border: `1px solid ${C.border}`, background: 'transparent',
@@ -725,7 +744,9 @@ function StoryScreen({ philId, progress, onUpdateProgress, onGoDeep, onBack }: {
   const [videoError, setVideoError] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const currentLine = p.dialogue[lineIdx] ?? ''
+  const currentLine    = p.dialogue[lineIdx]
+  const currentText    = currentLine?.text    ?? ''
+  const currentSpeaker = currentLine?.speaker ?? 'philosopher'
 
   useEffect(() => {
     if (phase !== 'dialogue') return
@@ -733,17 +754,17 @@ function StoryScreen({ philId, progress, onUpdateProgress, onGoDeep, onBack }: {
     let i = 0
     const tick = () => {
       i++
-      setDisplayed(currentLine.slice(0, i))
-      if (i < currentLine.length) { timerRef.current = setTimeout(tick, 28) }
+      setDisplayed(currentText.slice(0, i))
+      if (i < currentText.length) { timerRef.current = setTimeout(tick, 28) }
       else { setTyping(false) }
     }
     timerRef.current = setTimeout(tick, 28)
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [phase, lineIdx, currentLine])
+  }, [phase, lineIdx, currentText])
 
   const skipType = () => {
     if (timerRef.current) clearTimeout(timerRef.current)
-    setDisplayed(currentLine); setTyping(false)
+    setDisplayed(currentText); setTyping(false)
   }
 
   const nextLine = () => {
@@ -863,11 +884,16 @@ function StoryScreen({ philId, progress, onUpdateProgress, onGoDeep, onBack }: {
       }}>
         {/* Speaker name */}
         <div style={{
-          fontFamily: PIXEL, fontSize: 8, color: p.color,
+          fontFamily: PIXEL, fontSize: 8,
+          color: currentSpeaker === 'sakura' ? C.tealLight : p.color,
           letterSpacing: 2, marginBottom: 8, flexShrink: 0,
-          borderBottom: `1px solid ${p.color}55`, paddingBottom: 7,
+          borderBottom: `1px solid ${currentSpeaker === 'sakura' ? C.tealLight : p.color}55`,
+          paddingBottom: 7,
         }}>
-          {p.name}  <span style={{ opacity: 0.6 }}>/{p.nameEn}/</span>
+          {currentSpeaker === 'sakura'
+            ? <>さくら  <span style={{ opacity: 0.6 }}>/SAKURA/</span></>
+            : <>{p.name}  <span style={{ opacity: 0.6 }}>/{p.nameEn}/</span></>
+          }
         </div>
 
         {/* Dialogue text — スクロール可能 */}
@@ -1305,6 +1331,226 @@ function EndingScreen({ buddyId, won, onNext }: {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// COLLECTION SCREEN
+// ══════════════════════════════════════════════════════════════════
+
+const ROUTE_CONFIGS = [
+  { buddyId: 'socrates', label: 'ソクラテスルート', color: '#7BA7BC', ids: ['socrates', 'plato', 'aristotle', 'kant', 'nietzsche'] },
+  { buddyId: 'buddha',   label: 'ブッダルート',     color: '#D4A853', ids: ['buddha', 'nagarjuna', 'dogen', 'nishida', 'heidegger'] },
+  { buddyId: 'laozi',    label: '老子ルート',       color: '#6BAF8C', ids: ['laozi', 'zhuangzi', 'confucius', 'mencius', 'wang_yangming'] },
+]
+
+function CollectionScreen({
+  collectionProgress, currentBuddy, onSelectRoute,
+}: {
+  collectionProgress: Record<string, { quizzed?: boolean; deep?: boolean }>
+  currentBuddy: string | null
+  onSelectRoute: () => void
+}) {
+  const [vis, setVis] = useState(false)
+  const [selectedCard, setSelectedCard] = useState<string | null>(null)
+  useEffect(() => { const t = setTimeout(() => setVis(true), 80); return () => clearTimeout(t) }, [])
+
+  const totalUnlocked = ROUTE_CONFIGS.flatMap(r => r.ids).filter(id => collectionProgress[id]?.quizzed).length
+  const total = ROUTE_CONFIGS.flatMap(r => r.ids).length
+
+  const selectedPhil = selectedCard ? getPhilosopher(selectedCard) : null
+
+  return (
+    <div style={{ minHeight: '100vh', background: C.bg, padding: '68px 20px 100px' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto' }}>
+
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: 40, opacity: vis ? 1 : 0, transition: 'opacity .8s ease' }}>
+          <p style={{ fontFamily: PIXEL, fontSize: 9, color: C.tealLight, letterSpacing: 3, marginBottom: 14 }}>
+            PHILOSOPHER&apos;S COLLECTION
+          </p>
+          <h2 style={{ fontFamily: SERIF, fontSize: 32, color: C.cream, fontWeight: 400, marginBottom: 16 }}>
+            哲学者図鑑
+          </h2>
+
+          {/* Total progress */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 16, background: C.panel, border: `2px solid ${C.border}`, padding: '14px 28px' }}>
+            <span style={{ fontFamily: SERIF, fontSize: 22, color: C.amber }}>{totalUnlocked}</span>
+            <span style={{ fontFamily: PIXEL, fontSize: 8, color: C.textDim }}>/</span>
+            <span style={{ fontFamily: SERIF, fontSize: 22, color: C.creamDim }}>{total}</span>
+            <span style={{ fontFamily: SERIF, fontSize: 15, color: C.creamDim, marginLeft: 4 }}>人 解放済み</span>
+          </div>
+          {totalUnlocked < total && (
+            <p style={{ fontFamily: SERIF, fontSize: 14, color: C.tealLight, marginTop: 12 }}>
+              {total - totalUnlocked}人の哲学者がまだ眠っています——別のルートへ進もう
+            </p>
+          )}
+          {totalUnlocked === total && (
+            <p style={{ fontFamily: PIXEL, fontSize: 9, color: C.amber, marginTop: 12, letterSpacing: 2, animation: 'blink-a 1.5s step-end infinite' }}>
+              ★ ALL PHILOSOPHERS COLLECTED ★
+            </p>
+          )}
+        </div>
+
+        {/* Route sections */}
+        {ROUTE_CONFIGS.map((route, ri) => {
+          const routeUnlocked = route.ids.filter(id => collectionProgress[id]?.quizzed).length
+          const isCurrentRoute = currentBuddy === route.buddyId
+          return (
+            <div key={route.buddyId} style={{
+              marginBottom: 40, opacity: vis ? 1 : 0,
+              transition: `opacity .8s ease ${ri * .15}s`,
+            }}>
+              {/* Route label */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                <div style={{ flex: 1, height: 1, background: `${route.color}44` }} />
+                <span style={{ fontFamily: PIXEL, fontSize: 8, color: route.color, letterSpacing: 2 }}>
+                  {route.label.toUpperCase()}
+                </span>
+                <span style={{ fontFamily: PIXEL, fontSize: 7, color: C.textDim }}>{routeUnlocked}/{route.ids.length}</span>
+                {isCurrentRoute && (
+                  <span style={{ fontFamily: PIXEL, fontSize: 7, color: route.color, background: `${route.color}22`, padding: '2px 8px', border: `1px solid ${route.color}44` }}>
+                    NOW PLAYING
+                  </span>
+                )}
+                <div style={{ flex: 1, height: 1, background: `${route.color}44` }} />
+              </div>
+
+              {/* Cards grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+                {route.ids.map((id, ci) => {
+                  const phil = getPhilosopher(id)
+                  const unlocked = !!collectionProgress[id]?.quizzed
+                  const deep     = !!collectionProgress[id]?.deep
+                  const isSelected = selectedCard === id
+
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => setSelectedCard(isSelected ? null : id)}
+                      style={{
+                        background: unlocked
+                          ? `linear-gradient(160deg, ${route.color}22, ${C.panel})`
+                          : `${C.panel}80`,
+                        border: `2px solid ${isSelected ? route.color : unlocked ? `${route.color}66` : C.tealDim}`,
+                        padding: '14px 8px 12px',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        transition: 'all .2s',
+                        boxShadow: unlocked && !isSelected ? `0 0 12px ${route.color}20` : isSelected ? `0 0 24px ${route.color}60` : 'none',
+                        position: 'relative',
+                        animation: `slideIn .4s ease ${ci * .06 + ri * .1}s both`,
+                      }}
+                    >
+                      {/* Number badge */}
+                      <div style={{
+                        position: 'absolute', top: 6, left: 7,
+                        fontFamily: PIXEL, fontSize: 6, color: unlocked ? route.color : C.textDim,
+                      }}>
+                        {String(ci + 1).padStart(2, '0')}
+                      </div>
+
+                      {/* Deep badge */}
+                      {deep && (
+                        <div style={{ position: 'absolute', top: 6, right: 7, fontSize: 10 }}>⭐</div>
+                      )}
+
+                      {/* Icon */}
+                      <div style={{ fontSize: 30, marginBottom: 8, filter: unlocked ? 'none' : 'grayscale(1) brightness(0.3)' }}>
+                        {phil?.icon ?? '?'}
+                      </div>
+
+                      {/* Name */}
+                      {unlocked ? (
+                        <>
+                          <p style={{ fontFamily: SERIF, fontSize: 12, color: C.cream, marginBottom: 4, lineHeight: 1.3 }}>
+                            {phil?.name}
+                          </p>
+                          <p style={{ fontFamily: PIXEL, fontSize: 6, color: route.color, letterSpacing: 0.5, lineHeight: 1.4 }}>
+                            {phil?.nameEn?.toUpperCase()}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p style={{ fontFamily: PIXEL, fontSize: 11, color: C.tealDim, marginBottom: 4 }}>???</p>
+                          <p style={{ fontFamily: SERIF, fontSize: 10, color: C.textDim, lineHeight: 1.4 }}>
+                            {isCurrentRoute ? '未解放' : `${route.label}へ`}
+                          </p>
+                        </>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+
+        {/* Selected card detail */}
+        {selectedPhil && collectionProgress[selectedCard!]?.quizzed && (
+          <div style={{
+            marginTop: 8, marginBottom: 32,
+            background: C.panel, border: `2px solid ${selectedPhil.color}`,
+            padding: '24px', animation: 'fadeSlide .3s ease',
+          }}>
+            <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <div style={{ fontSize: 52 }}>{selectedPhil.icon}</div>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <p style={{ fontFamily: PIXEL, fontSize: 7, color: selectedPhil.color, letterSpacing: 2, marginBottom: 8 }}>
+                  {selectedPhil.nameEn.toUpperCase()}
+                </p>
+                <h3 style={{ fontFamily: SERIF, fontSize: 22, color: C.cream, fontWeight: 400, marginBottom: 8 }}>
+                  {selectedPhil.name}
+                </h3>
+                <p style={{ fontFamily: SERIF, fontSize: 14, color: selectedPhil.color, marginBottom: 10, fontStyle: 'italic' }}>
+                  {selectedPhil.tagline}
+                </p>
+                <p style={{ fontFamily: SERIF, fontSize: 15, color: C.creamDim, lineHeight: 1.9, marginBottom: 14 }}>
+                  「{selectedPhil.quote}」
+                </p>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
+                  background: `${selectedPhil.color}22`, border: `1px solid ${selectedPhil.color}55`,
+                  padding: '8px 14px',
+                }}>
+                  <span style={{ fontSize: 18 }}>{selectedPhil.wisdom.icon}</span>
+                  <div>
+                    <p style={{ fontFamily: PIXEL, fontSize: 7, color: selectedPhil.color }}>WISDOM</p>
+                    <p style={{ fontFamily: SERIF, fontSize: 14, color: C.cream }}>{selectedPhil.wisdom.name}</p>
+                    <p style={{ fontFamily: SERIF, fontSize: 12, color: C.creamDim }}>{selectedPhil.wisdom.description}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Route selection CTA */}
+        <div style={{
+          textAlign: 'center', marginTop: 16, padding: '28px',
+          background: `${C.panel}`, border: `2px solid ${C.amberDim}`,
+          opacity: vis ? 1 : 0, transition: 'opacity .8s ease .5s',
+        }}>
+          <p style={{ fontFamily: PIXEL, fontSize: 8, color: C.amber, letterSpacing: 2, marginBottom: 12 }}>
+            ★  COLLECT  THEM  ALL  ★
+          </p>
+          <p style={{ fontFamily: SERIF, fontSize: 16, color: C.cream, marginBottom: 8, lineHeight: 2 }}>
+            3つのルートを制覇して全{total}人の哲学者を解放しよう。
+          </p>
+          <p style={{ fontFamily: SERIF, fontSize: 14, color: C.creamDim, marginBottom: 24, lineHeight: 2 }}>
+            各ルートは異なる思想の「旅」——どのルートも、別のルートでは会えない哲学者がいる。
+          </p>
+          <button onClick={onSelectRoute} style={{
+            fontFamily: PIXEL, fontSize: 10, letterSpacing: 2,
+            background: C.amberDim, border: `2px solid ${C.amber}`,
+            color: C.cream, padding: '14px 36px', cursor: 'pointer',
+            boxShadow: `0 0 20px ${C.amberDim}`,
+          }}>
+            ▶ ルートを選び直す
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════════
 // ROOT APP
 // ══════════════════════════════════════════════════════════════════
 
@@ -1312,11 +1558,12 @@ export default function Page() {
   const gs = useGameState()
   const [won, setWon] = useState(false)
 
-  const { screen, setScreen, buddy, hasSave, progress, newGame, loadGame, getPhilProgress, updateProgress, markDeepRead, getReadBonus, quizzedIds } = gs
+  const { screen, setScreen, buddy, hasSave, progress, collectionProgress, newGame, loadGame, getPhilProgress, updateProgress, markDeepRead, getReadBonus, quizzedIds } = gs
 
-  const goMap   = () => setScreen('map')
-  const goTitle = () => setScreen('title')
-  const goBoss  = () => setScreen('boss')
+  const goMap        = () => setScreen('map')
+  const goTitle      = () => setScreen('title')
+  const goBoss       = () => setScreen('boss')
+  const goCollection = () => setScreen('collection')
 
   // Manual save
   const handleSave = useCallback(() => {
@@ -1334,7 +1581,7 @@ export default function Page() {
 
   return (
     <>
-      <GlobalNav screen={screen} onMap={goMap} onSave={handleSave} />
+      <GlobalNav screen={screen} onMap={goMap} onSave={handleSave} onCollection={goCollection} />
 
       {screen === 'title' && (
         <TitleScreen hasSave={hasSave} onNew={() => setScreen('prologue')} onContinue={loadGame} />
@@ -1375,6 +1622,13 @@ export default function Page() {
       )}
       {screen === 'ending' && buddy && (
         <EndingScreen buddyId={buddy} won={won} onNext={won ? goTitle : goMap} />
+      )}
+      {screen === 'collection' && (
+        <CollectionScreen
+          collectionProgress={collectionProgress}
+          currentBuddy={buddy}
+          onSelectRoute={() => setScreen('buddy')}
+        />
       )}
     </>
   )
