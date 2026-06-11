@@ -93,6 +93,7 @@ export type StoryPhase =
 export type GameScreen =
   | 'title'
   | 'prologue'
+  | 'questionnaire'
   | 'buddy'
   | 'map'
   | 'collection'

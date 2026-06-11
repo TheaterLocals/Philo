@@ -5,7 +5,7 @@ import { useGameState } from '@/hooks/useGameState'
 import { BUDDIES, getBuddy } from '@/data/buddies'
 import { getBoss } from '@/data/bosses'
 import { getPhilosopher, getPhilosophersByBuddy } from '@/data/philosophers'
-import type { PhilProgress, Quiz, StoryPhase } from '@/types/game'
+import type { BuddyId, PhilProgress, Quiz, StoryPhase } from '@/types/game'
 
 // ── Palette & fonts ──────────────────────────────────────────────
 const C = {
@@ -307,6 +307,75 @@ const PROLOGUE_SCENES = [
   },
 ]
 
+// ── Questionnaire data ────────────────────────────────────────────
+
+type QuestionOption = { text: string; buddy: BuddyId }
+type QuestionItem   = { q: string; options: QuestionOption[] }
+
+const QUESTIONNAIRE: QuestionItem[] = [
+  {
+    q: '最近、一番しんどかった瞬間はどれに近いですか？',
+    options: [
+      { text: '頑張っているのに、誰にも気づいてもらえなかった', buddy: 'buddha' },
+      { text: '周りと比べて、自分だけ取り残された気がした', buddy: 'laozi' },
+      { text: '「なんのために頑張っているんだろう」と虚しくなった', buddy: 'socrates' },
+      { text: 'ずっと不安で、でも何が不安なのかわからなかった', buddy: 'socrates' },
+    ],
+  },
+  {
+    q: 'つらいとき、あなたがやってしまいがちなのは？',
+    options: [
+      { text: 'スマホを開いて、みんながどう生きているか見てしまう', buddy: 'laozi' },
+      { text: '「もっとやれたはず」と自分を責めて、また頑張ろうとする', buddy: 'buddha' },
+      { text: '「そもそも自分って何がしたいんだっけ」と考え込む', buddy: 'socrates' },
+      { text: '何もかもがどうでもよくなって、何もできなくなる', buddy: 'buddha' },
+    ],
+  },
+  {
+    q: '苦しさの先に、本当に欲しいのは？',
+    options: [
+      { text: '「自分が何者か」がわかる、ブレない軸', buddy: 'socrates' },
+      { text: '比べることをやめた、静かで穏やかな心', buddy: 'buddha' },
+      { text: '誰にも縛られず、自分らしく生きられる感覚', buddy: 'laozi' },
+      { text: '「これが私の人生だ」と思える、小さな覚悟', buddy: 'socrates' },
+    ],
+  },
+]
+
+type MismatchData = { greeting: string; question: string; options: string[] }
+const MISMATCH: Record<string, MismatchData> = {
+  socrates: {
+    greeting: 'ほう。別の答えが出たのに、俺を選んだか。……理由は言わなくていい。ただ、ひとつだけ聞かせてくれ。',
+    question: '今、一番しっくりくる言葉はどれだ？',
+    options: [
+      '「なぜ自分はこうなんだろう」と問い続けている',
+      '「答え」より「正しい問い」を探している',
+      '頭の中を整理したいのに、うまくできない',
+      '誰かと一緒に考えたい',
+    ],
+  },
+  buddha: {
+    greeting: 'そうか。……苦しいのか。なんとなく、わかる。じゃあ、ひとつだけ聞かせてくれ。',
+    question: '今、あなたの心に一番近いのは？',
+    options: [
+      '手放せないものがあって、それが苦しい',
+      'なぜ苦しいのかも、もうわからない',
+      'ただ楽になりたい',
+      '自分を責めることが止められない',
+    ],
+  },
+  laozi: {
+    greeting: 'ふうん。……なんとなく、か。それでいい。なんとなくってのは、案外、本当のことを知ってたりするもんだよ。まあ、ひとつだけ聞かせて。',
+    question: '今、何が一番しんどい？',
+    options: [
+      '周りのペースに合わせるのが疲れた',
+      '自分らしくいられる場所がない',
+      '戦いたくないのに、戦わないといけない気がする',
+      '正解がわからないまま走り続けている',
+    ],
+  },
+}
+
 function PrologueScreen({ onStart }: { onStart: () => void }) {
   const [sceneIdx, setSceneIdx] = useState(0)
   const [vis, setVis] = useState(true)
@@ -463,17 +532,165 @@ function PrologueScreen({ onStart }: { onStart: () => void }) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// QUESTIONNAIRE SCREEN
+// ══════════════════════════════════════════════════════════════════
+
+function QuestionnaireScreen({ onComplete }: {
+  onComplete: (recommended: BuddyId) => void
+}) {
+  const [qIdx,         setQIdx]         = useState(0)
+  const [scores,       setScores]       = useState<Record<string, number>>({ socrates: 0, buddha: 0, laozi: 0 })
+  const [selected,     setSelected]     = useState<number | null>(null)
+  const [vis,          setVis]          = useState(false)
+  const [transitioning, setTransitioning] = useState(false)
+
+  useEffect(() => { const t = setTimeout(() => setVis(true), 80); return () => clearTimeout(t) }, [])
+
+  const question = QUESTIONNAIRE[qIdx]!
+
+  const select = (i: number) => {
+    if (selected !== null) return
+    setSelected(i)
+    const buddy = question.options[i]!.buddy
+    const next  = { ...scores, [buddy]: (scores[buddy] ?? 0) + 1 }
+    setScores(next)
+
+    setTimeout(() => {
+      if (qIdx < QUESTIONNAIRE.length - 1) {
+        setTransitioning(true)
+        setTimeout(() => {
+          setQIdx(q => q + 1)
+          setSelected(null)
+          setTransitioning(false)
+        }, 300)
+      } else {
+        const recommended = (Object.entries(next) as [BuddyId, number][])
+          .sort((a, b) => b[1] - a[1])[0][0]
+        onComplete(recommended)
+      }
+    }, 700)
+  }
+
+  return (
+    <div style={{
+      minHeight: '100vh', background: '#050e0e',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      padding: '40px 24px', position: 'relative', overflow: 'hidden',
+    }}>
+      <div style={{
+        position: 'fixed', inset: 0, pointerEvents: 'none',
+        backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.1) 2px,rgba(0,0,0,.1) 4px)',
+        zIndex: 0,
+      }} />
+
+      <div style={{
+        position: 'relative', zIndex: 1, maxWidth: 600, width: '100%',
+        opacity: vis && !transitioning ? 1 : 0,
+        transition: 'opacity .4s ease',
+      }}>
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+          <p style={{ fontFamily: PIXEL, fontSize: 8, color: C.tealLight, letterSpacing: 3, marginBottom: 16 }}>
+            KNOW  YOUR  SELF
+          </p>
+          <p style={{ fontFamily: SERIF, fontSize: 16, color: C.creamDim, marginBottom: 28 }}>
+            あなたの悩みを、教えてください
+          </p>
+          {/* Progress dots */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+            {QUESTIONNAIRE.map((_, i) => (
+              <div key={i} style={{
+                width: i === qIdx ? 32 : 10, height: 4,
+                background: i < qIdx ? C.amber : i === qIdx ? C.tealLight : C.tealDim,
+                transition: 'all .3s ease',
+              }} />
+            ))}
+          </div>
+        </div>
+
+        <p style={{ fontFamily: PIXEL, fontSize: 7, color: C.textDim, letterSpacing: 2, textAlign: 'center', marginBottom: 20 }}>
+          Q{qIdx + 1}  /  {QUESTIONNAIRE.length}
+        </p>
+
+        {/* Question */}
+        <p style={{
+          fontFamily: SERIF, fontSize: 'clamp(18px,3vw,22px)',
+          color: C.cream, lineHeight: 1.9, textAlign: 'center', marginBottom: 36,
+        }}>
+          {question.q}
+        </p>
+
+        {/* Options */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {question.options.map((opt, i) => {
+            const isSelected = selected === i
+            return (
+              <button key={i} onClick={() => select(i)} disabled={selected !== null}
+                style={{
+                  background: isSelected ? C.tealDim : 'transparent',
+                  border: `2px solid ${isSelected ? C.tealLight : C.border}`,
+                  padding: '16px 20px', textAlign: 'left',
+                  cursor: selected !== null ? 'default' : 'pointer',
+                  fontFamily: SERIF, fontSize: 'clamp(15px,2.2vw,17px)',
+                  color: isSelected ? C.cream : C.creamDim,
+                  lineHeight: 1.7, transition: 'all .2s',
+                  display: 'flex', gap: 14, alignItems: 'flex-start',
+                }}
+              >
+                <span style={{
+                  fontFamily: PIXEL, fontSize: 8,
+                  color: isSelected ? C.tealLight : C.textDim,
+                  marginTop: 4, minWidth: 16, flexShrink: 0,
+                }}>
+                  {isSelected ? '▶' : String.fromCharCode(65 + i)}
+                </span>
+                {opt.text}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════════
 // BUDDY SELECT
 // ══════════════════════════════════════════════════════════════════
 
-function BuddySelectScreen({ onSelect }: { onSelect: (id: string) => void }) {
-  const [vis, setVis] = useState(false)
-  const [hov, setHov] = useState<string | null>(null)
-  const [imgError, setImgError] = useState<Record<string, boolean>>({})
+function BuddySelectScreen({ recommendedBuddyId, onSelect }: {
+  recommendedBuddyId: BuddyId | null
+  onSelect: (id: string) => void
+}) {
+  const [vis,           setVis]          = useState(false)
+  const [hov,           setHov]          = useState<string | null>(null)
+  const [imgError,      setImgError]     = useState<Record<string, boolean>>({})
+  const [mismatchId,    setMismatchId]   = useState<BuddyId | null>(null)
+  const [mismatchAns,   setMismatchAns]  = useState<number | null>(null)
+
   useEffect(() => { const t = setTimeout(() => setVis(true), 80); return () => clearTimeout(t) }, [])
 
+  const handleCardClick = (id: BuddyId) => {
+    if (recommendedBuddyId && id !== recommendedBuddyId) {
+      setMismatchId(id)
+      setMismatchAns(null)
+    } else {
+      onSelect(id)
+    }
+  }
+
+  const handleMismatchAnswer = (i: number) => {
+    if (mismatchAns !== null) return
+    setMismatchAns(i)
+    setTimeout(() => onSelect(mismatchId!), 800)
+  }
+
+  const mismatchBuddy = mismatchId ? getBuddy(mismatchId) : null
+  const mismatchData  = mismatchId ? MISMATCH[mismatchId] : null
+
   return (
-    <div style={{ minHeight: '100vh', background: C.bg, padding: '60px 20px 80px' }}>
+    <div style={{ minHeight: '100vh', background: C.bg, padding: '60px 20px 80px', position: 'relative' }}>
       <div style={{ maxWidth: 960, margin: '0 auto' }}>
         <div style={{
           textAlign: 'center', marginBottom: 52,
@@ -485,9 +702,23 @@ function BuddySelectScreen({ onSelect }: { onSelect: (id: string) => void }) {
           <h2 style={{ fontFamily: SERIF, fontSize: 38, color: C.cream, fontWeight: 400, marginBottom: 14 }}>
             旅のバディを選んでください
           </h2>
-          <p style={{ fontFamily: SERIF, fontSize: 16, color: C.creamDim }}>
-            バディはあなたとともに哲学者たちの世界へ導きます
-          </p>
+          {recommendedBuddyId ? (
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 10,
+              background: `${C.amber}12`, border: `1px solid ${C.amberDim}`,
+              padding: '10px 22px', marginTop: 4,
+            }}>
+              <span style={{ fontFamily: PIXEL, fontSize: 7, color: C.amber, letterSpacing: 2 }}>RECOMMENDED</span>
+              <span style={{ fontFamily: SERIF, fontSize: 17, color: C.amber }}>
+                {getBuddy(recommendedBuddyId)?.name}
+              </span>
+              <span style={{ fontFamily: SERIF, fontSize: 14, color: C.creamDim }}>があなたに合うかもしれません</span>
+            </div>
+          ) : (
+            <p style={{ fontFamily: SERIF, fontSize: 16, color: C.creamDim }}>
+              バディはあなたとともに哲学者たちの世界へ導きます
+            </p>
+          )}
         </div>
 
         <div style={{
@@ -495,88 +726,177 @@ function BuddySelectScreen({ onSelect }: { onSelect: (id: string) => void }) {
           opacity: vis ? 1 : 0, transform: vis ? 'translateY(0)' : 'translateY(20px)',
           transition: 'all .9s ease .2s',
         }}>
-          {BUDDIES.map(b => (
-            <button
-              key={b.id}
-              onClick={() => onSelect(b.id)}
-              onMouseEnter={() => setHov(b.id)}
-              onMouseLeave={() => setHov(null)}
-              style={{
-                background: 'transparent',
-                border: `2px solid ${hov === b.id ? b.color : C.border}`,
-                padding: 0,
-                cursor: 'pointer', textAlign: 'left',
-                transition: 'all .2s ease',
-                boxShadow: hov === b.id ? `0 0 28px ${b.color}30` : 'none',
-                position: 'relative', overflow: 'hidden',
-              }}
-            >
-              {/* Illustration — tall area */}
-              <div style={{
-                width: '100%', height: 300,
-                display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-                overflow: 'hidden',
-                background: `radial-gradient(ellipse at center bottom, ${b.color}20 0%, ${C.panel} 80%)`,
-              }}>
-                {!imgError[b.id] ? (
-                  <img
-                    src={`/illustrations/${b.id}.png`}
-                    alt={b.name}
-                    onError={() => setImgError(p => ({ ...p, [b.id]: true }))}
-                    style={{
-                      height: '100%', width: 'auto', maxWidth: '100%',
-                      objectFit: 'contain', objectPosition: 'bottom center',
-                      animation: hov === b.id ? 'bob 2s ease-in-out infinite' : 'none',
-                      filter: `drop-shadow(0 0 12px ${b.color}44)`,
-                    }}
-                  />
-                ) : (
+          {BUDDIES.map(b => {
+            const isRec = b.id === recommendedBuddyId
+            const isDim = recommendedBuddyId !== null && !isRec && hov !== b.id
+            return (
+              <button
+                key={b.id}
+                onClick={() => handleCardClick(b.id as BuddyId)}
+                onMouseEnter={() => setHov(b.id)}
+                onMouseLeave={() => setHov(null)}
+                style={{
+                  background: 'transparent',
+                  border: `2px solid ${isRec ? C.amber : hov === b.id ? b.color : C.border}`,
+                  padding: 0, cursor: 'pointer', textAlign: 'left',
+                  transition: 'all .2s ease',
+                  boxShadow: isRec
+                    ? `0 0 32px ${C.amber}40`
+                    : hov === b.id ? `0 0 28px ${b.color}30` : 'none',
+                  opacity: isDim ? 0.65 : 1,
+                  position: 'relative', overflow: 'hidden',
+                }}
+              >
+                {isRec && (
                   <div style={{
-                    fontSize: 90, paddingBottom: 16,
-                    animation: hov === b.id ? 'bob 2s ease-in-out infinite' : 'none',
+                    position: 'absolute', top: 12, right: 12, zIndex: 2,
+                    background: C.amberDim, border: `1px solid ${C.amber}`,
+                    fontFamily: PIXEL, fontSize: 7, color: C.amber,
+                    padding: '4px 8px', letterSpacing: 1,
                   }}>
-                    {b.icon}
+                    ★ RECOMMENDED
                   </div>
                 )}
-              </div>
 
-              {/* Text overlay — overlaps illustration, semi-transparent */}
-              <div style={{
-                marginTop: -56,
-                background: 'rgba(22,32,32,0.82)',
-                backdropFilter: 'blur(8px)',
-                borderTop: `1px solid ${b.color}44`,
-                padding: '20px 22px 22px',
-                position: 'relative',
-              }}>
-                <p style={{ fontFamily: PIXEL, fontSize: 8, color: b.color, marginBottom: 8, letterSpacing: 1 }}>
-                  {b.nameEn.toUpperCase()}
-                </p>
-                <h3 style={{ fontFamily: SERIF, fontSize: 30, color: C.cream, fontWeight: 400, marginBottom: 6 }}>
-                  {b.name}
-                </h3>
-                <p style={{ fontFamily: SERIF, fontSize: 15, color: b.color, marginBottom: 12, fontStyle: 'italic' }}>
-                  {b.tagline}
-                </p>
-                <p style={{ fontFamily: SERIF, fontSize: 15, color: C.creamDim, lineHeight: 1.9, marginBottom: 14 }}>
-                  {b.description}
-                </p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {b.worries.map(w => (
-                    <span key={w} style={{
-                      fontFamily: SERIF, fontSize: 13,
-                      background: `${b.color}22`, color: b.color,
-                      padding: '4px 10px', border: `1px solid ${b.color}44`,
-                    }}>
-                      {w}
-                    </span>
-                  ))}
+                <div style={{
+                  width: '100%', height: 300,
+                  display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+                  overflow: 'hidden',
+                  background: `radial-gradient(ellipse at center bottom, ${isRec ? C.amber : b.color}20 0%, ${C.panel} 80%)`,
+                }}>
+                  {!imgError[b.id] ? (
+                    <img
+                      src={`/illustrations/${b.id}.png`}
+                      alt={b.name}
+                      onError={() => setImgError(p => ({ ...p, [b.id]: true }))}
+                      style={{
+                        height: '100%', width: 'auto', maxWidth: '100%',
+                        objectFit: 'contain', objectPosition: 'bottom center',
+                        animation: hov === b.id ? 'bob 2s ease-in-out infinite' : 'none',
+                        filter: `drop-shadow(0 0 12px ${isRec ? C.amber : b.color}44)`,
+                      }}
+                    />
+                  ) : (
+                    <div style={{ fontSize: 90, paddingBottom: 16, animation: hov === b.id ? 'bob 2s ease-in-out infinite' : 'none' }}>
+                      {b.icon}
+                    </div>
+                  )}
                 </div>
-              </div>
-            </button>
-          ))}
+
+                <div style={{
+                  marginTop: -56,
+                  background: 'rgba(22,32,32,0.82)', backdropFilter: 'blur(8px)',
+                  borderTop: `1px solid ${isRec ? C.amber : b.color}44`,
+                  padding: '20px 22px 22px', position: 'relative',
+                }}>
+                  <p style={{ fontFamily: PIXEL, fontSize: 8, color: isRec ? C.amber : b.color, marginBottom: 8, letterSpacing: 1 }}>
+                    {b.nameEn.toUpperCase()}
+                  </p>
+                  <h3 style={{ fontFamily: SERIF, fontSize: 30, color: C.cream, fontWeight: 400, marginBottom: 6 }}>
+                    {b.name}
+                  </h3>
+                  <p style={{ fontFamily: SERIF, fontSize: 15, color: isRec ? C.amber : b.color, marginBottom: 12, fontStyle: 'italic' }}>
+                    {b.tagline}
+                  </p>
+                  <p style={{ fontFamily: SERIF, fontSize: 15, color: C.creamDim, lineHeight: 1.9, marginBottom: 14 }}>
+                    {b.description}
+                  </p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {b.worries.map(w => (
+                      <span key={w} style={{
+                        fontFamily: SERIF, fontSize: 13,
+                        background: `${isRec ? C.amber : b.color}22`,
+                        color: isRec ? C.amber : b.color,
+                        padding: '4px 10px',
+                        border: `1px solid ${isRec ? C.amber : b.color}44`,
+                      }}>
+                        {w}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </button>
+            )
+          })}
         </div>
       </div>
+
+      {/* ── Mismatch overlay ── */}
+      {mismatchId && mismatchBuddy && mismatchData && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(5,14,14,0.93)', backdropFilter: 'blur(14px)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          padding: '40px 24px',
+          animation: 'fadeSlide .4s ease',
+        }}>
+          <div style={{ maxWidth: 540, width: '100%' }}>
+            {/* Buddy header */}
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+              <div style={{ fontSize: 52, marginBottom: 10 }}>{mismatchBuddy.icon}</div>
+              <p style={{ fontFamily: PIXEL, fontSize: 8, color: mismatchBuddy.color, letterSpacing: 2, marginBottom: 6 }}>
+                {mismatchBuddy.nameEn.toUpperCase()}
+              </p>
+              <h3 style={{ fontFamily: SERIF, fontSize: 26, color: C.cream, fontWeight: 400 }}>
+                {mismatchBuddy.name}
+              </h3>
+            </div>
+
+            {/* Greeting */}
+            <PixelBox style={{ padding: '18px 22px', marginBottom: 24, borderColor: mismatchBuddy.color }}>
+              <p style={{ fontFamily: SERIF, fontSize: 17, color: C.cream, lineHeight: 2 }}>
+                {mismatchData.greeting}
+              </p>
+            </PixelBox>
+
+            {/* Follow-up question */}
+            <p style={{ fontFamily: SERIF, fontSize: 16, color: C.tealLight, marginBottom: 16, textAlign: 'center' }}>
+              {mismatchData.question}
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {mismatchData.options.map((opt, i) => {
+                const isSelected = mismatchAns === i
+                return (
+                  <button key={i} onClick={() => handleMismatchAnswer(i)}
+                    disabled={mismatchAns !== null}
+                    style={{
+                      background: isSelected ? `${mismatchBuddy.color}28` : 'transparent',
+                      border: `2px solid ${isSelected ? mismatchBuddy.color : C.border}`,
+                      padding: '13px 18px', textAlign: 'left',
+                      cursor: mismatchAns !== null ? 'default' : 'pointer',
+                      fontFamily: SERIF, fontSize: 15,
+                      color: isSelected ? C.cream : C.creamDim,
+                      lineHeight: 1.7, transition: 'all .2s',
+                      display: 'flex', gap: 12, alignItems: 'flex-start',
+                    }}
+                  >
+                    <span style={{
+                      fontFamily: PIXEL, fontSize: 8,
+                      color: isSelected ? mismatchBuddy.color : C.textDim,
+                      marginTop: 3, minWidth: 16, flexShrink: 0,
+                    }}>
+                      {isSelected ? '▶' : String.fromCharCode(65 + i)}
+                    </span>
+                    {opt}
+                  </button>
+                )
+              })}
+            </div>
+
+            {mismatchAns === null && (
+              <button onClick={() => setMismatchId(null)} style={{
+                display: 'block', margin: '20px auto 0',
+                fontFamily: PIXEL, fontSize: 8, color: C.textDim,
+                background: 'transparent', border: 'none', cursor: 'pointer', letterSpacing: 1,
+              }}>
+                ← バディ選択に戻る
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1557,6 +1877,7 @@ function CollectionScreen({
 export default function Page() {
   const gs = useGameState()
   const [won, setWon] = useState(false)
+  const [recommendedBuddy, setRecommendedBuddy] = useState<BuddyId | null>(null)
 
   const { screen, setScreen, buddy, hasSave, progress, collectionProgress, newGame, loadGame, getPhilProgress, updateProgress, markDeepRead, getReadBonus, quizzedIds } = gs
 
@@ -1587,10 +1908,13 @@ export default function Page() {
         <TitleScreen hasSave={hasSave} onNew={() => setScreen('prologue')} onContinue={loadGame} />
       )}
       {screen === 'prologue' && (
-        <PrologueScreen onStart={() => setScreen('buddy')} />
+        <PrologueScreen onStart={() => setScreen('questionnaire')} />
+      )}
+      {screen === 'questionnaire' && (
+        <QuestionnaireScreen onComplete={rec => { setRecommendedBuddy(rec); setScreen('buddy') }} />
       )}
       {screen === 'buddy' && (
-        <BuddySelectScreen onSelect={id => newGame(id as never)} />
+        <BuddySelectScreen recommendedBuddyId={recommendedBuddy} onSelect={id => newGame(id as never)} />
       )}
       {screen === 'map' && buddy && (
         <MapScreen buddyId={buddy} progress={progress} onSelectPhil={id => setScreen(`story_${id}`)} onBoss={goBoss} />
